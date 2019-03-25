@@ -3,6 +3,8 @@ utility functions:
 - midi2char: transforms a midi-pitch into its character representation (e.g. C0 = 12, C3 = 48)
 """
 
+import math
+
 notes = ['C', 'C#/Db', 'D', 'D#/Eb', 'E', 'F', 'F#/Gb', 'G', 'G#/Ab', 'A', 'A#/Bb', 'B']
 
 
@@ -12,3 +14,6 @@ def midi2char(midi_key: int) -> str:
 
 def char2midi(key: str) -> int:
     return notes.index(key[:-1]) + (int(key[-1])+1)*12
+
+
+def sigmoid(x): return 1 / (1 + math.exp(-x))

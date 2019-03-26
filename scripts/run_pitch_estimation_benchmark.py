@@ -2,12 +2,13 @@ import os
 import sys
 import csv
 
+from timeit import default_timer as timer
+
 module_dir = os.path.realpath(os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir))
-print(os.path.abspath(__file__), module_dir)
 if module_dir not in sys.path:
     sys.path.append(module_dir)
 
-from mpd.aubio_pitch_detection import AubioPitchDetector
+from mpd.aubio_pitch_detection import AubioPitchDetector, AubioNotesDetector, PitchDetector
 
 # config / arguments
 write_csv = False
@@ -21,11 +22,20 @@ _pitchTP, _pitchFN = 0, 0
 
 if __name__ == '__main__':
     pd = AubioPitchDetector(time_limit_s=time_limit_s, onset_minioi_ms=onset_minioi_ms)
+    if len(sys.argv) > 1:
+        if sys.argv[1] == 'aubio-notes':
+            pd = AubioNotesDetector(time_limit_s=time_limit_s, onset_minioi_ms=onset_minioi_ms)
+        elif sys.argv[1] == 'lowpass-yin':
+            pd = PitchDetector(time_limit_s=time_limit_s, onset_minioi_ms=onset_minioi_ms)
 
+    start = timer()
     for subdir, dirs, files in os.walk(folder):
         for file in files:
+            if len(sys.argv) > 2 and file != sys.argv[2]:
+                continue
             path = os.path.join(subdir, file)
             if path.endswith('.wav'):
+                print(path.split('\\')[-1])
                 pitches = pd.get_pitches(path)
 
                 path_csv = path[:-3] + "csv"
@@ -56,7 +66,8 @@ if __name__ == '__main__':
 
                         print(f"Onset: TP:{onsetTP}, FP:{onsetFP}, FN:{onsetFN} -> "
                               f"{round(100*onsetTP/(onsetTP+onsetFP+onsetFN),2)}")
-                        print(f"Pitch: TP:{pitchTP}, FN:{pitchFN}       -> {round(100*pitchTP/(pitchTP+pitchFN), 2)}")
+                        print(f"Pitch: TP:{pitchTP}, FN:{pitchFN}       -> "
+                              f"{round(100*pitchTP/max(1,pitchTP+pitchFN), 2)}")
 
                         _onsetTP += onsetTP
                         _onsetFP += onsetFP
@@ -72,6 +83,11 @@ if __name__ == '__main__':
                     print(f"Did not create file {path_csv}, file already exists!")
                 print()
 
-    print("--- All Files ---")
-    print(f"Onset: TP:{_onsetTP}, FP:{_onsetFP}, FN:{_onsetFN} -> {round(100*_onsetTP/(_onsetTP+_onsetFP+_onsetFN), 2)}")
-    print(f"Pitch: TP:{_pitchTP}, FN:{_pitchFN}       -> {round(100*_pitchTP/(_pitchTP+_pitchFN), 2)}")
+    end = timer()
+    if len(sys.argv) <= 2:
+        print("--- All Files ---")
+        print(f"Onset: TP:{_onsetTP}, FP:{_onsetFP}, FN:{_onsetFN} -> {round(100*_onsetTP/(_onsetTP+_onsetFP+_onsetFN), 2)}")
+        print(f"Pitch: TP:{_pitchTP}, FN:{_pitchFN}       -> {round(100*_pitchTP/(_pitchTP+_pitchFN), 2)}")
+    else:
+        print(pitches)
+    print(f"elapsed time: {round(end - start, 3)}s")

@@ -14,7 +14,7 @@ from mpd.pitch import AubioPitchDetector
 
 # config / arguments
 write_csv = False
-folder = r'C:\Projects\MusicTranscription\MAB-TonyGame\recordings\benchmarks\1'
+folder = r'C:\Projects\MusicTranscription\MAB-TonyGame\recordings\benchmarks\2'
 
 time_limit_s = 0.1
 onset_benchmark_tolerance_ms = 50
@@ -25,7 +25,7 @@ _pitchTP, _pitchFN = 0, 0
 if __name__ == '__main__':
     hop_size = 512
     onset_method = 'specflux'
-    onset_buf_size = 1024
+    onset_buf_size = 2048
     onset_minioi_ms = 150
 
     pitch_method = 'yinfft'
@@ -35,8 +35,8 @@ if __name__ == '__main__':
     filter_method = 'lowpass'
 
     # onset method: energy, hfc, specflux
-    od = AubioOnsetDetector(onset_method, hop_size, onset_buf_size, onset_minioi_ms)
-    # od = MadmomFeatureOnsetDetector('superflux', hop_size, 4096, onset_minioi_ms, num_bands=96, fps=200)
+    # od = AubioOnsetDetector(onset_method, hop_size, onset_buf_size, onset_minioi_ms)
+    od = MadmomFeatureOnsetDetector('superflux', hop_size, onset_buf_size, onset_minioi_ms, num_bands=60)
     # od = MadmomRNNOnsetDetector(hop_size, 4096, onset_minioi_ms, fps=100)
     pd = AubioPitchDetector(pitch_method, hop_size, pitch_frame_size, time_limit_s, history_length)
 

@@ -9,12 +9,14 @@ module_dir = os.path.realpath(os.path.join(os.path.dirname(os.path.realpath(__fi
 if module_dir not in sys.path:
     sys.path.append(module_dir)
 
+from mpd.source import AubioSource
 from mpd.onset import AubioOnsetDetector, MadmomFeatureOnsetDetector, MadmomRNNOnsetDetector
 from mpd.pitch import AubioPitchDetector
 
 # config / arguments
 write_csv = False
 folder = r'C:\Projects\MusicTranscription\MAB-TonyGame\recordings\benchmarks\2'
+# folder = r'C:\Projects\MusicTranscription\MAB-TonyGame\TonyGame\Assets\Resources\SoundTesting\PianoSamples'
 
 time_limit_s = 0.1
 onset_benchmark_tolerance_ms = 50
@@ -49,7 +51,7 @@ if __name__ == '__main__':
             if path.endswith('.wav'):
                 # get onset+pitches of the wav file
                 print(path.split('\\')[-1])
-                src = aubio.source(path, hop_size=hop_size)
+                src = AubioSource(path, hop_size=hop_size)
                 sample_limit = src.samplerate * time_limit_s
 
                 od.create_detector(src.samplerate)

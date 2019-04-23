@@ -17,7 +17,6 @@ from mpd.pitch import AubioPitchDetector
 write_csv = False
 folder = r'C:\Projects\MusicTranscription\MAB-TonyGame\recordings\benchmarks\2'
 
-time_limit_s = 0.1
 onset_benchmark_tolerance_ms = 50
 
 _onsetTP, _onsetFP, _onsetFN = 0, 0, 0
@@ -39,9 +38,10 @@ if __name__ == '__main__':
     # od = AubioOnsetDetector(onset_method, hop_size, onset_buf_size, onset_minioi_ms)
     od = MadmomFeatureOnsetDetector('superflux', hop_size, onset_buf_size, onset_minioi_ms, num_bands=60)
     # od = MadmomRNNOnsetDetector(hop_size, 4096, onset_minioi_ms, fps=100)
-    pd = AubioPitchDetector(pitch_method, hop_size, pitch_frame_size, time_limit_s, history_length)
+    pd = AubioPitchDetector(pitch_method, hop_size, pitch_frame_size, history_length)
 
     start = timer()
+    sample_limit = (history_length + 1) * hop_size
     for subdir, dirs, files in os.walk(folder):
         for file in files:
             if len(sys.argv) > 2 and file != sys.argv[2]:
@@ -51,7 +51,6 @@ if __name__ == '__main__':
                 # get onset+pitches of the wav file
                 print(path.split('\\')[-1])
                 src = create_source(path, hop_size=hop_size, verbose=False)
-                sample_limit = src.samplerate * time_limit_s
 
                 od.create_detector(src.samplerate)
                 pd.create_detector(src.samplerate)
@@ -66,7 +65,7 @@ if __name__ == '__main__':
 
                 pitches = {}  # onset[ms]:pitch[midi]
                 total_read = 0
-                last_onset = -time_limit_s
+                last_onset = -sample_limit
                 while True:
                     samples, read = src()
                     total_read += read
@@ -74,8 +73,8 @@ if __name__ == '__main__':
                     last_onset = od.process_next(samples, last_onset)
                     pitch = pd.process_next(af(samples))
 
-                    samples_past_100ms_after_onset = total_read - sample_limit - last_onset
-                    if samples_past_100ms_after_onset < 0 < samples_past_100ms_after_onset + hop_size and pitch > 0:
+                    samples_past_limit_after_onset = total_read - sample_limit - last_onset
+                    if samples_past_limit_after_onset < 0 < samples_past_limit_after_onset + hop_size and pitch > 0:
                         pitches[round(last_onset / src.samplerate * 1000)] = pitch
 
                     if read < src.hop_size:

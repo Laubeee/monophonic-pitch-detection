@@ -1,6 +1,5 @@
 import os
 import sys
-import csv
 
 from timeit import default_timer as timer
 import aubio
@@ -11,38 +10,33 @@ if module_dir not in sys.path:
 
 from mpd.utils import midi2char
 from mpd.source import create_source
-from mpd.onset import AubioOnsetDetector, MadmomFeatureOnsetDetector, MadmomRNNOnsetDetector
+from mpd.onset import AubioOnsetDetector
 from mpd.pitch import AubioPitchDetector
 
 # config / arguments
 folder = r'C:\Projects\MusicTranscription\MAB-TonyGame\TonyGame\Assets\Resources\SoundTesting\PianoSamples'
-
-time_limit_s = 0.1
-onset_benchmark_tolerance_ms = 50
 
 tp, fp = 0, 0
 osf = 0  # onset failures
 
 if __name__ == '__main__':
     hop_size = 512
-    onset_method = 'specflux'
+    onset_method = 'specflux'  # 'hfc'  # 'energy'
     onset_buf_size = 4096
-    onset_minioi_ms = 150
+    onset_minioi_ms = 300
 
     pitch_method = 'yinfft'
     pitch_frame_size = 4096
-    history_length = 8
+    history_length = 16  # 186ms @ 44.1khz
 
-    filter_method = 'lowpass'
+    filter_method = None  # 'lowpass'
 
-    # onset method: energy, hfc, specflux
     od = AubioOnsetDetector(onset_method, hop_size, onset_buf_size, onset_minioi_ms)
-    od.threshold = 0.9
-    # od = MadmomFeatureOnsetDetector('superflux', hop_size, onset_buf_size, onset_minioi_ms, num_bands=60)
-    # od = MadmomRNNOnsetDetector(hop_size, 4096, onset_minioi_ms, fps=100)
-    pd = AubioPitchDetector(pitch_method, hop_size, pitch_frame_size, time_limit_s, history_length)
+    # od.threshold = 0.75
+    pd = AubioPitchDetector(pitch_method, hop_size, pitch_frame_size, history_length)
 
     start = timer()
+    sample_limit = (history_length+1) * hop_size
     for subdir, dirs, files in os.walk(folder):
         for file in files:
             if len(sys.argv) > 2 and file != sys.argv[2]:
@@ -52,7 +46,6 @@ if __name__ == '__main__':
                 # get onset+pitches of the wav file
                 gt_file = path.split('\\')[-1][:-4]
                 src = create_source(path, hop_size=hop_size, verbose=False)
-                sample_limit = src.samplerate * time_limit_s
 
                 od.create_detector(src.samplerate)
                 pd.create_detector(src.samplerate)
@@ -67,7 +60,7 @@ if __name__ == '__main__':
 
                 pitches = []
                 total_read = 0
-                last_onset = -time_limit_s
+                last_onset = -sample_limit
                 while True:
                     samples, read = src()
                     total_read += read
@@ -75,9 +68,11 @@ if __name__ == '__main__':
                     last_onset = od.process_next(samples, last_onset)
                     pitch = pd.process_next(af(samples))
 
-                    samples_past_100ms_after_onset = total_read - sample_limit - last_onset
-                    if samples_past_100ms_after_onset < 0 < samples_past_100ms_after_onset + hop_size and pitch > 0:
+                    samples_past_limit_after_onset = total_read - sample_limit - last_onset
+                    if samples_past_limit_after_onset < 0 < samples_past_limit_after_onset + hop_size and pitch > 0:
                         pitches.append(midi2char(pitch))
+                    # elif samples_past_limit_after_onset < 0 < samples_past_limit_after_onset + hop_size and pitch == 0:
+                    #     print(f'zero-onset at {round(last_onset/src.samplerate, 3)}')
 
                     if read < src.hop_size:
                         break

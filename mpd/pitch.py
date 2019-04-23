@@ -8,10 +8,9 @@ from .utils import sigmoid
 
 
 class AbstractPitchDetector:
-    def __init__(self, hop_size: int, frame_size: int, time_limit_s: float):
+    def __init__(self, hop_size: int, frame_size: int):
         self.hop_size = hop_size
         self.frame_size = frame_size
-        self.time_limit_s = time_limit_s
 
         self.pitch = None
 
@@ -27,11 +26,13 @@ class AubioPitchDetector(AbstractPitchDetector):
     (aubio onset and aubio pitch)
     """
 
-    def __init__(self, method: str, hop_size: int, frame_size=4096, time_limit_s: float=0.1, history_length: int=8):
-        super().__init__(hop_size, frame_size, time_limit_s)
+    def __init__(self, method: str, hop_size: int, frame_size=4096, history_length: int=8):
+        super().__init__(hop_size, frame_size)
         self.method = method  # yinfft, yin, mcomb
 
-        self.p_weights = [sigmoid(x) for x in (np.arange(-4, 4, 8 / history_length) - 0.5)]  # .1,.2,.3,.4,.75,1,1.2,1.3
+        hops = min(history_length, int(frame_size / hop_size) - 1)
+        self.p_weights = np.ones(history_length)
+        self.p_weights[:hops] = [sigmoid(x) for x in (np.arange(-4, 4, 8 / hops) - 0.5)]  # .1,.2,.3,.4,.75,1,1.2,1.3
         self.history = deque(maxlen=len(self.p_weights))
 
     def create_detector(self, samplerate):

@@ -17,7 +17,7 @@ class AbstractOnsetDetector:
     def create_detector(self, samplerate):
         raise NotImplementedError("Abstract method implementation missing")
 
-    def process_next(self, samples, last_onset) -> int:
+    def process_next(self, samples) -> int:
         raise NotImplementedError("Abstract method implementation missing")
 
 
@@ -32,11 +32,11 @@ class AubioOnsetDetector(AbstractOnsetDetector):
         self.onset.set_minioi_ms(self.minioi_ms)
         self.onset.set_threshold(self.threshold)
 
-    def process_next(self, samples, last_onset) -> int:
+    def process_next(self, samples) -> int:
         o = self.onset(samples)
         if o[0] != 0:
-            last_onset = self.onset.get_last()  # round(self.onset.get_last() / self.onset.samplerate * 1000)
-        return last_onset  # return as n sample
+            return self.onset.get_last()  # round(self.onset.get_last() / self.onset.samplerate * 1000)
+        return 0
 
 
 class MadmomOnsetDetector(AbstractOnsetDetector):
@@ -50,13 +50,13 @@ class MadmomOnsetDetector(AbstractOnsetDetector):
         self.processed_samples = 0
         self.sample_rate = sample_rate
 
-    def process_next(self, samples, last_onset) -> int:
+    def process_next(self, samples) -> int:
         self.processed_samples += len(samples)
 
         o = self.onset(samples)
         if len(o) > 0 and o[0] > 0:
-            last_onset = int(o[0] * self.sample_rate)
-        return last_onset  # return as n sample
+            return int(o[0] * self.sample_rate)
+        return 0
 
 
 class MadmomFeatureOnsetDetector(MadmomOnsetDetector):

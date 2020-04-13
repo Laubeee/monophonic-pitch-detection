@@ -25,12 +25,17 @@ class AubioOnsetDetector(AbstractOnsetDetector):
     def __init__(self, method: str, hop_size: int, frame_size: int=1024, minioi_ms: int=50):
         super().__init__(hop_size, frame_size, minioi_ms)
         self.method = method
-        self.threshold = {'hfc': 0.3, 'energy': 0.9, 'specflux': 1.0}[self.method]
+        self.threshold = {'hfc': 0.3, 'energy': 0.9, 'specflux': 0.95}[self.method]
+        self.compression = 2.0  # default 10.0
+        self.silence = -54  # default -70
 
     def create_detector(self, samplerate):
         self.onset = aubio.onset(self.method, self.buf_size, self.hop_size, samplerate)
         self.onset.set_minioi_ms(self.minioi_ms)
         self.onset.set_threshold(self.threshold)
+        self.onset.set_compression(self.compression)
+        self.onset.set_silence(self.silence)
+        #self.onset.set_awhitening()
 
     def process_next(self, samples) -> int:
         o = self.onset(samples)

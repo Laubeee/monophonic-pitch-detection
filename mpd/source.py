@@ -31,6 +31,7 @@ class AubioSource(AbstractSource):
         super().__init__(hop_size)
         self.src = aubio_source(path, hop_size=self.hop_size)
         self.samplerate = self.src.samplerate
+        self.duration_s = self.src.duration / self.samplerate
 
     def __call__(self):
         return self.src()
@@ -46,6 +47,8 @@ class WavioSource(AbstractSource):
         if len(self.data.shape) > 1:  # merge multiple channels
             self.data = self.data.mean(axis=1)
 
+        self.duration_s = self.data.shape[0] / self.samplerate
+
     def __call__(self):
         return self.get_next_from_data(self.data)
 
@@ -54,6 +57,7 @@ class ScipySource(AbstractSource):
     def __init__(self, path: str, hop_size: int):
         super().__init__(hop_size)
         self.samplerate, self.data = scipy_read(path)
+        self.duration_s = self.data.shape[0] / self.samplerate
         # todo: convert to float32 (?)
 
     def __call__(self):

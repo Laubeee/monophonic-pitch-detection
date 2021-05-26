@@ -16,9 +16,9 @@ from mpd.pitch import AubioPitchDetector
 folder = r'C:\Projects\MusicTranscription\MAB-TonyGame\recordings\benchmarks\7'
 folder = r'C:\Projects\_Studiprojekte\19HS-P5 Tony Game\Abgabe\network_code\our_recordings\guitar\0'
 folder = r'C:\Projects\MusicTranscription\MAB-TonyGame\recordings\soundtesting_pipeline'
-folder = r'C:\Projects\MusicTranscription\MAB-TonyGame\recordings\benchmarks\3'
+folder = r'C:\Projects\MusicTranscription\MAB-TonyGame\recordings\benchmarks\8'
 # destination folder for mock CSV
-dest = r'C:\Projects\MusicTranscription\MAB-TonyGame\recordings\\soundtesting_pipeline\3'
+dest = r'C:\Projects\MusicTranscription\MAB-TonyGame\recordings\\soundtesting_pipeline\8_latentpolyphony_tune_boosting'
 
 # C:\Projects\MusicTranscription\MAB-TonyGame\recordings\soundtesting_pipeline
 

@@ -28,17 +28,17 @@ benchmark_folders = [
     # r'C:\Projects\MusicTranscription\MAB-TonyGame\recordings\benchmarks\8',
     r'C:\Projects\MusicTranscription\MAB-TonyGame\recordings\benchmarks\9_onset_problem',
 ]
-benchmark_folders = [r'C:\Projects\MusicTranscription\MAB-TonyGame\recordings\benchmarks\1_initial_set']
+# benchmark_folders = [r'C:\Projects\MusicTranscription\MAB-TonyGame\recordings\benchmarks\1_initial_set']
 
 onset_benchmark_tolerance_ms = 125  # onset tolerance difference
 silent = False  # suppress outputs
-verbose = True  # turn on analysis output
+verbose = False  # turn on analysis output
 
 if __name__ == '__main__':
     hop_size = 512
-    pitch_frame_size = 4096
     lowest_note = 35  # B1
-    history_length = 15
+    history_length = 20
+    seq_len = 12
     ioi_frames = 0
 
     for t in range(1):
@@ -53,7 +53,7 @@ if __name__ == '__main__':
         for folder in benchmark_folders:
             for subdir, dirs, files in os.walk(folder):
                 for file in files:
-                    if len(sys.argv) > 2 and file != sys.argv[2]:
+                    if len(sys.argv) > 1 and file != sys.argv[1]:
                         continue
                     path = os.path.join(subdir, file)
                     path_csv = path[:-3] + "csv"
@@ -62,9 +62,12 @@ if __name__ == '__main__':
 
                     # get onset+pitches of the wav file
                     src = create_source(path, hop_size=hop_size, verbose=False)
-                    pd = aubio.pitch('yinfft', pitch_frame_size, hop_size, src.samplerate)
+                    pd = aubio.pitch('yinfft', 2048, hop_size, src.samplerate)
                     pd.set_unit('midi')
                     phist = deque(maxlen=history_length)
+                    pd2 = aubio.pitch('yinfft', 4096, hop_size, src.samplerate)
+                    pd2.set_unit('midi')
+                    phist2 = deque(maxlen=history_length)
 
                     pitches = {}  # onset[ms]:pitch[midi]
                     total_read = 0
@@ -76,31 +79,50 @@ if __name__ == '__main__':
                             break
 
                         total_read += read
-                        pitch = int(round(pd(samples)[0]))
+                        pitch1 = int(round(pd(samples)[0]))
+                        pitch2 = int(round(pd2(samples)[0]))
+                        # if lowest_note <= pitch2 < pitch_low_threshold or pitch == 0:
+                        #     pitch = pitch2
 
-                        '''
-                        pitch = pd.process_next(samples)
-                        pitch2 = pd2.process_next(samples)
-                        if lowest_note <= pitch2 < pitch_low_threshold or pitch == 0:
+                        count, count2 = 0, 0
+                        for hist in [phist, phist2]:
+                            for p in hist:
+                                if p == pitch1:
+                                    count += 1
+                                if p == pitch2:
+                                    count2 += 1
+                        phist.append(pitch1)
+                        phist2.append(pitch2)
+                        seq = len(phist)
+                        while seq > 0 and phist[seq-1] == pitch1:
+                            seq -= 1
+                        seq = len(phist) - seq
+                        seq2 = len(phist2)
+                        while seq2 > 0 and phist2[seq2-1] == pitch2:
+                            seq2 -= 1
+                        seq2 = len(phist2) - seq2
+                        if count2 >= count:
+                            count = count2
                             pitch = pitch2
-                        '''
+                            seq = seq2
+                        else:
+                            pitch = pitch1
 
-                        stable = True
-                        for p in phist:
-                            if p != pitch:
-                                stable = False
-                                break
-                        phist.append(pitch)
+                        stable = count >= history_length and seq >= seq_len
                         if pitch == 0:
                             stable_pitch = 0  # reset stable pitch as soon (and only when) silence is detected
+                        # print(f"\np: {pitch} ({pitch1}, {pitch2}), seq: {seq}, count: {count}")
+                        # print(f"\033[33m{' '.join(map(str, phist))} | {' '.join(map(str, phist2))}\033[0m")
+
                         if stable:
                             if stable_pitch != pitch and stable_count >= ioi_frames:  # and pitch > 0:
                                 stable_pitch = pitch
-                                onset_time_offset = len(phist) + pitch_frame_size / hop_size
-                                onset = round((total_read - onset_time_offset * hop_size) / src.samplerate * 1000)
+                                onset = round((total_read - (seq + 4) * hop_size) / src.samplerate * 1000)
                                 pitches[onset] = pitch
                                 if verbose:
-                                    print(f"\033[31m{pitch} ({onset})", end=" ")
+                                    print(f"\n\033[33m{' '.join(map(str, phist))}")
+                                    print(f"{' '.join(map(str, phist2))}\033[0m", end=" -> ")
+                                    print(f"\033[31m{pitch} ({total_read / src.samplerate * 1000} -> {onset})", end=" ")
                             stable_count += 1
 
                         if verbose:
@@ -108,7 +130,10 @@ if __name__ == '__main__':
                                 if stable_count > 0:
                                     print("... (", stable_count, "more)\033[0m")
                                     stable_count = 0
-                                print(pitch, end=" ")
+                                if pitch1 == pitch2:
+                                    print(pitch1, end=" ")
+                                else:
+                                    print(f"\033[35m({pitch1},{pitch2})\033[0m", end=" ")
 
                     with open(path_csv, mode='r') as f:
                         reader = csv.reader(f, delimiter=',')
@@ -183,7 +208,7 @@ if __name__ == '__main__':
                         _onset_stats += onset_stats
 
         end = timer()
-        if len(sys.argv) <= 2:
+        if len(sys.argv) <= 1:
             if not silent:
                 print("--- All Files ---")
                 for k in sorted(_pitch_error_stats):
@@ -196,7 +221,7 @@ if __name__ == '__main__':
                     print(f"p{i}0: {_os[int(len(_os)*i/10)]}")
                 print(f"max: {_os[-1]} \t{_os[-10:]}")
                 print(f"mean: {statistics.mean(_onset_stats)}")
-            print(f"{pitch_frame_size} Onset: TP:{_onsetTP}, FP:{_onsetFP}, FN:{_onsetFN} -> f1: \033[32m"
+            print(f"{history_length} Onset: TP:{_onsetTP}, FP:{_onsetFP}, FN:{_onsetFN} -> f1: \033[32m"
                   f"{round(100*2*_onsetTP**2/max(1,(2*_onsetTP**2+_onsetTP*_onsetFP+_onsetTP*_onsetFN)),2)}% "
                   f"\033[0mPitch: TP:{_pitchTP}, FN:{_pitchFN} -> \033[32m"
                   f"{round(100*_pitchTP/max(1, _pitchTP+_pitchFN), 2)}%\033[0m")
